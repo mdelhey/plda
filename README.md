@@ -6,7 +6,7 @@ poisson discriminant analysis
 includes routines for gaussian LDA and QDA 
 
 see [CLASSIFICATION AND CLUSTERING OF SEQUENCING DATA
-USING A POISSON MODEL][http://arxiv.org/pdf/1202.6201.pdf]
+USING A POISSON MODEL](http://arxiv.org/pdf/1202.6201.pdf)
 
 ## install
 
