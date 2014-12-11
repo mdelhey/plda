@@ -8,10 +8,11 @@
 #' @param dist Underlying distribution of predictors. Normal models
 #' continuous data. Poisson models count data.
 #' @return List of class "plda" containing the classifier results.
-plda <- function(X, y, method = c("linear", "quadratic"), dist = c("normal", "poisson")) {
+plda <- function(X, y, method = c("linear", "quadratic"), dist = c("normal", "poisson"), prior = c("proportion", "uniform")) {
     stopifnot(is.matrix(X), is.factor(y), length(y) == nrow(X))
     method <- match.arg(method)
-    dist <- match.arg(dist)
+    dist   <- match.arg(dist)
+    prior  <- match.arg(prior)
     
     # House-keeping variables.
     K <- length(levels(y))
@@ -19,9 +20,19 @@ plda <- function(X, y, method = c("linear", "quadratic"), dist = c("normal", "po
     N <- nrow(X)
     P <- ncol(X)
 
+    # Estimate prior. 
+    pi.hat <- switch(
+        prior
+      , uniform    = 1 / K
+      , proportion = N.k / N
+    )
+
+    if (dist == "poisson") {
+        s.hat <- 1
+    }
+    
     if (dist == "normal") {       
         # MLE Estimates
-        pi.hat <- N.k / N
         mu.hat <- as.matrix(do.call("rbind", by(X, y, colMeans)))
         sigma.hat <- switch(
             method
@@ -31,15 +42,9 @@ plda <- function(X, y, method = c("linear", "quadratic"), dist = c("normal", "po
 
         # Calculate Liklihood of MVN
         densities <- estimate.densities(X, mu.hat, sigma.hat, method = method)
-        ## if (method == "linear")
-        ##     densities <- t(apply(X, 1, function(x) unlist(lapply(1:K, function(k)
-        ##         normal.density(as.matrix(x), mu.hat[k, ], sigma.hat)))))
-        ## if (method == "quadratic")
-        ##     densities <- t(apply(X, 1, function(x) unlist(lapply(1:K, function(k)
-        ##         normal.density(as.matrix(x), mu.hat[k, ], sigma.hat[[k]])))))
 
         # Use bayes rule to calculate posterior densities
-        posteriors <- bayes.rule(X, densities, pi.hat)            
+        posteriors <- bayes.rule(X, densities, pi.hat)        
         fitted.posteriors <- factor(levels(y)[apply(posteriors, 1, which.max)], levels = levels(y))
 
         # Compare with Fisher's discriminant rule to assign classes
@@ -51,10 +56,17 @@ plda <- function(X, y, method = c("linear", "quadratic"), dist = c("normal", "po
                 quadratic.discriminant(as.matrix(x), mu.hat[k, ], sigma.hat[[k]], pi.hat[k])))))
         
         # Ensure we make the same predictions.
-        fitted.discriminants <- factor(levels(y)[apply(discriminants, 1, which.max)], levels = levels(y))
+        fitted.discriminants <- factor(levels(y)[apply(discriminants, 1, which.max)], levels = levels(y))        
         
-        if (!(all.equal(fitted.discriminants, fitted.posteriors)))
+        if (!isTRUE(all.equal(fitted.discriminants, fitted.posteriors)))
             warning("discrimants and posteriors do not agree!")
+
+        # Return normal-dist estimates
+        estimates = list(
+            pi.hat = pi.hat
+          , mu.hat = mu.hat
+          , sigma.hat = sigma.hat
+        )
     }
     
     result <- list(
@@ -65,13 +77,12 @@ plda <- function(X, y, method = c("linear", "quadratic"), dist = c("normal", "po
           , N.k = N.k
           , method = method
           , dist = dist
-        )        
+          , levels = levels(y)
+        )
+      , estimates = estimates
       , fitted = fitted.posteriors
       , posteriors = posteriors
-      , densities = densities
-      , pi.hat = pi.hat
-      , mu.hat = mu.hat
-      , sigma.hat = sigma.hat
+      , densities = densities        
     )
     class(result) <- "plda"
     return(result)
