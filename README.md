@@ -1,21 +1,18 @@
 plda
 ====
 
-poisson discriminant analysis 
+Poisson discriminant analysis with additional routines for gaussian LDA and QDA.
 
-includes routines for gaussian LDA and QDA 
+See [Classification and lustering of sequencing data using a poisson model](http://arxiv.org/pdf/1202.6201.pdf).
 
-see [CLASSIFICATION AND CLUSTERING OF SEQUENCING DATA
-USING A POISSON MODEL](http://arxiv.org/pdf/1202.6201.pdf)
-
-## install
+## Install
 
 ```{r}
 install.packages("devtools")
 devtools::install_github("mattdelhey/plda")
 ```
 
-## useage
+## Useage
 
 ```{r}
 library(plda)
