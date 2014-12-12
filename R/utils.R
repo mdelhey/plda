@@ -14,18 +14,49 @@ bayes.rule <- function(X, densities, pi) {
     return(posteriors)
 }
 
-#' @title Estimate densities. 
+#' @title Estimate normal densities. 
 #' @inheritParams plda
-estimate.densities <- function(X, mu.hat, sigma.hat, method = "linear") {
-    K <- nrow(mu.hat)    
+estimate.normal.densities <- function(X, mu.hat, sigma.hat, type = c("linear", "quadratic")) {
+    type  <- match.arg(type)
+    K <- nrow(mu.hat)
+    
     sigma.hat.use <- switch(
-        method
+        type
       , linear = "sigma.hat"
       , quadratic = "sigma.hat[[k]]"
     )
     
     densities <- t(apply(X, 1, function(x) unlist(lapply(1:K, function(k)
         normal.density(as.matrix(x), mu.hat[k, ], eval(parse(text = sigma.hat.use)))))))
+
+    return(densities)
+}
+
+#' @title Estimate poisson densities.
+#' @inheritParams plda
+estimate.poisson.densities <- function(X, N.hat, d.hat) {
+    K <- nrow(d.hat)
+    N <- nrow(X)
+    
+    ## densities <- t(apply(X, 1, function(x) unlist(lapply(1:K, function(k)
+    ##     poisson.density(as.matrix(x), lambda = N.hat * d.hat[k, ])))))
+
+    ## densities <- unlist(lapply(1:N, function(i)))
+
+    ## lambda <- N.hat %*% t(d.hat)    
+    
+    ## densities <- unlist(lapply(1:K, function(k)
+    ##     poisson.density(X, lambda = N.hat * d.hat[k, ])))
+
+    ## densities <- unlist(lapply(1:K, function(k)
+    ##     poisson.density(X, lambda = lambda[, k])))
+
+    densities <- matrix(nrow = N, ncol = K, rep(NA, N*K))
+    for (i in 1:nrow(X)) {
+        for (k in 1:K) {
+            densities[i, k] <- prod(poisson.density(X[i, ], lambda = N.hat[i, ] * d.hat[k, ]))
+        }
+    }
 
     return(densities)
 }
