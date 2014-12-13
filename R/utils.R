@@ -1,12 +1,24 @@
 #' @title Bayes rule for estimating posteriors.
 #' @inheritParams plda
-bayes.rule <- function(X, densities, pi) {
+#' @param type Calculate posteriors using raw products of probabilities or summation of logs of
+#' probabilities? "Sum" may offer superior floating point accuracy.
+bayes.rule <- function(X, densities, pi, type = c("prod", "sum")) {
+    type <- match.arg(type)
     K <- ncol(densities)
     N <- nrow(X)
-    
-    posteriors <- do.call("cbind", lapply(1:K, function(j)
-        unlist(lapply(1:N, function(i)    
-            (pi[j] * densities[i, j]) / sum(pi * densities[i, ])))))
+
+    if (type == "prod") {
+        posteriors <- do.call("cbind", lapply(1:K, function(j)
+            unlist(lapply(1:N, function(i)    
+                (pi[j] * densities[i, j]) / sum(pi * densities[i, ])))))
+    }
+
+    if (type == "sum") {
+        log.posteriors <- do.call("cbind", lapply(1:K, function(j)
+            unlist(lapply(1:N, function(i)
+                log(pi[j]) + log(densities[i, j]) - log(sum(pi * densities[i, ]))))))
+        posteriors <- exp(1)^log.posteriors
+    }
 
     if (!isTRUE(all.equal(apply(posteriors, 1, sum), rep(1, N), check.attributes = FALSE)))
         stop("posteriors do not sum to one!")
@@ -38,36 +50,38 @@ estimate.poisson.densities <- function(X, N.hat, d.hat) {
     K <- nrow(d.hat)
     N <- nrow(X)
     
-    ## densities <- t(apply(X, 1, function(x) unlist(lapply(1:K, function(k)
-    ##     poisson.density(as.matrix(x), lambda = N.hat * d.hat[k, ])))))
-
-    ## densities <- unlist(lapply(1:N, function(i)))
-
-    ## lambda <- N.hat %*% t(d.hat)    
-    
-    ## densities <- unlist(lapply(1:K, function(k)
-    ##     poisson.density(X, lambda = N.hat * d.hat[k, ])))
-
-    ## densities <- unlist(lapply(1:K, function(k)
-    ##     poisson.density(X, lambda = lambda[, k])))
-
-    densities <- matrix(nrow = N, ncol = K, rep(NA, N*K))
-    for (i in 1:nrow(X)) {
-        for (k in 1:K) {
-            densities[i, k] <- prod(poisson.density(X[i, ], lambda = N.hat[i, ] * d.hat[k, ]))
-        }
-    }
+    densities <- do.call("rbind", lapply(1:N, function(i) unlist(lapply(1:K, function(k)
+        prod(poisson.density(X[i, ], lambda = N.hat[i, ] * d.hat[k, ]))))))
 
     return(densities)
 }
 
+#' @title Calculate discriminants
+#' @description Wrapper for discriminant functions. Not currently in use.
+calculate.discriminants <- function(X, parameters, type = c("linear", "quadratic", "poisson")) {
+    type <- match.arg(type)
+    K <- ncol(X)
+    N <- nrow(X)
+    
+    discriminants <- do.call("rbind", lapply(1:N, function(i) unlist(lapply(1:K, function(k)
+        poisson.discriminant(X[i, ], s.hat[i], g.hat, d.hat[k, ], pi.hat[k])))))
+    
+    return(discriminants)
+}
 
+#' @title Linear discriminant
 linear.discriminant <- function(x, mu, sigma, pi) {    
     t(x) %*% solve(sigma) %*% mu - 0.5*t(mu) %*% solve(sigma) %*% mu + log(pi)
 }
 
+#' @title Quadratic discriminant
 quadratic.discriminant <- function(x, mu, sigma, pi) {
     (-1/2)*log(det(sigma)) - (1/2)*t(x - mu) %*% solve(sigma) %*% (x - mu) + log(pi)
+}
+
+#' @title Poisson discriminant 
+poisson.discriminant <- function(x, s, g, d, pi) {
+    sum(x*log(d)) - s*sum(g*d) + log(pi)
 }
 
 #' @title Multivariate normal density
@@ -78,6 +92,11 @@ normal.density <- function(x, mu, sigma) {
 #' @title Poisson univariate density.
 poisson.density <- function(x, lambda) {
     (lambda^x / factorial(x)) * exp(1)^(-lambda)
+}
+
+fit.posteriors <- function(posteriors, levels) {
+    stopifnot(is.character(levels), is.vector(levels), is.matrix(posteriors))
+    factor(levels[apply(posteriors, 1, which.max)], levels = levels)
 }
 
 #' @title Split data.

@@ -4,7 +4,8 @@
 \title{Poisson discriminant analysis.}
 \usage{
 plda(X, y, type = c("linear", "quadratic", "poisson"),
-  prior = c("proportion", "uniform"))
+  size.factor = c("mle", "quantile", "medratio"), prior = c("uniform",
+  "proportion"))
 }
 \arguments{
 \item{X}{Matrix of predictors.}

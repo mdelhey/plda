@@ -6,7 +6,8 @@
 #' separately. Linear and Quadratic assume predictors are normally distributed (i.e. continous
 #' data). Poisson models count data.
 #' @return List of class "plda" containing the classifier results.
-plda <- function(X, y, type = c("linear", "quadratic", "poisson"), prior = c("proportion", "uniform")) {
+plda <- function(X, y, type = c("linear", "quadratic", "poisson"), size.factor = c("mle", "quantile", "medratio"), prior = c("uniform", "proportion"))
+{
     stopifnot(is.matrix(X), is.factor(y), length(y) == nrow(X))
     type  <- match.arg(type)
     prior <- match.arg(prior)
@@ -16,7 +17,6 @@ plda <- function(X, y, type = c("linear", "quadratic", "poisson"), prior = c("pr
     N.k <- t(as.matrix(by(X, y, nrow)))
     N <- nrow(X)
     P <- ncol(X)
-    beta <- 0 # Smoothing parameter for Poisson. 0 is MLE
 
     # Estimate prior. 
     pi.hat <- switch(
@@ -27,16 +27,27 @@ plda <- function(X, y, type = c("linear", "quadratic", "poisson"), prior = c("pr
     
     if (type == "poisson") {
         # Dot notation
-        Xi. <- apply(X, 1, sum)
-        X.j <- apply(X, 2, sum)
+        Xi. <- apply(X, 1, sum) # rowSums
+        X.j <- apply(X, 2, sum) # colSums
         X.. <- sum(X)
-
-        # MLE Estimates
-        s.hat <- Xi. / X.. # size factor
+        
+        q.i <- pmax(apply(X, 1, quantile, 0.75), 1) # Minimum quantile value is 1
+        beta <- 1 # Smoothing parameter for Poisson. 0 is MLE
+        
+        # s = counts per observation (size factor)
+        # g = counts per feature                
+        s.hat <- switch(
+            size.factor
+          , mle      = Xi. / X..
+          , quantile = q.i / sum(q.i)
+          , medratio = NULL
+        )
+        
         g.hat <- X.j
-        N.hat <- as.matrix(s.hat) %*% t(as.matrix(g.hat))
+        N.hat <- matrix(s.hat) %*% matrix(g.hat, nrow = 1)
+        
         a <- as.matrix(do.call("rbind", by(X, y, function(x) colSums(x) + beta)))
-        b <- as.matrix(do.call("rbind", by(X, y, function(x) colSums(N.hat) + beta)))
+        b <- as.matrix(do.call("rbind", by(N.hat, y, function(x) colSums(x) + beta)))
         d.hat <- a / b # dkj > 1, jth feature is over-expressed relative to kth class       
         
         if (!all.equal(sum(s.hat), 1))
@@ -46,8 +57,18 @@ plda <- function(X, y, type = c("linear", "quadratic", "poisson"), prior = c("pr
         densities <- estimate.poisson.densities(X, N.hat, d.hat)
 
         # Use bayes rule to calculate posterior densities
-        posteriors <- bayes.rule(X, densities, pi.hat)
-        fitted.posteriors <- factor(levels(y)[apply(posteriors, 1, which.max)], levels = levels(y))
+        posteriors <- bayes.rule(X, densities, pi.hat, type = "sum")
+        fitted.posteriors <- fit.posteriors(posteriors, levels(y))
+
+        # Compare with discriminant rule to assign classes
+        discriminants <- do.call("rbind", lapply(1:N, function(i) unlist(lapply(1:K, function(k)
+            poisson.discriminant(X[i, ], s.hat[i], g.hat, d.hat[k, ], pi.hat[k])))))
+
+        # Ensure we make the same predictions.
+        fitted.discriminants <- fit.posteriors(discriminants, levels(y))
+        
+        if (!isTRUE(all.equal(fitted.discriminants, fitted.posteriors)))
+            warning("discrimants and posteriors do not agree!")
 
         # Return poisson estimates
         estimates = list(
@@ -71,7 +92,7 @@ plda <- function(X, y, type = c("linear", "quadratic", "poisson"), prior = c("pr
 
         # Use bayes rule to calculate posterior densities
         posteriors <- bayes.rule(X, densities, pi.hat)        
-        fitted.posteriors <- factor(levels(y)[apply(posteriors, 1, which.max)], levels = levels(y))
+        fitted.posteriors <- fit.posteriors(posteriors, levels(y))
 
         # Compare with Fisher's discriminant rule to assign classes
         if (type == "linear") 
@@ -82,7 +103,7 @@ plda <- function(X, y, type = c("linear", "quadratic", "poisson"), prior = c("pr
                 quadratic.discriminant(as.matrix(x), mu.hat[k, ], sigma.hat[[k]], pi.hat[k])))))
         
         # Ensure we make the same predictions.
-        fitted.discriminants <- factor(levels(y)[apply(discriminants, 1, which.max)], levels = levels(y))        
+        fitted.discriminants <- fit.posteriors(discriminants, levels(y))
         
         if (!isTRUE(all.equal(fitted.discriminants, fitted.posteriors)))
             warning("discrimants and posteriors do not agree!")

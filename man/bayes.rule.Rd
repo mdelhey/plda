@@ -3,10 +3,13 @@
 \alias{bayes.rule}
 \title{Bayes rule for estimating posteriors.}
 \usage{
-bayes.rule(X, densities, pi)
+bayes.rule(X, densities, pi, type = c("prod", "sum"))
 }
 \arguments{
 \item{X}{Matrix of predictors.}
+
+\item{type}{Calculate posteriors using raw products of probabilities or summation of logs of
+probabilities? "Sum" may offer superior floating point accuracy.}
 }
 \description{
 Bayes rule for estimating posteriors.

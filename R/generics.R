@@ -2,8 +2,7 @@ predict.plda <- function(result, Xnew, ...) {
     stopifnot(is.matrix(Xnew), ncol(Xnew) == result$parameters$P)
     stopifnot(class(result) == "plda")
 
-    if (result$parameters$type %in% c("linear", "quadratic")) {
-        
+    if (result$parameters$type %in% c("linear", "quadratic")) {        
         densities <- estimate.normal.densities(
             Xnew
           , mu.hat = result$estimates$mu.hat
@@ -12,10 +11,16 @@ predict.plda <- function(result, Xnew, ...) {
         )
     }
 
-    posteriors <- bayes.rule(Xnew, densities, result$estimates$pi.hat)
+    if (result$parameters$type == "poisson") {
+        densities <- estimate.poisson.densities(
+            Xnew
+          , N.hat = result$estimates$N.hat
+          , d.hat = result$estimates$d.hat
+        )        
+    }
 
-    fitted.posteriors <- factor(result$parameters$levels[apply(posteriors, 1, which.max)],
-                                levels = result$parameters$levels)
+    posteriors <- bayes.rule(Xnew, densities, result$estimates$pi.hat)
+    fitted.posteriors <- fit.posteriors(posteriors, result$parameters$levels)
 
     return(fitted.posteriors)
 }
@@ -40,10 +45,10 @@ print.plda <- function(result, ...) {
     if (dist == "poisson") {
         cat("\nN.hat (N by p, summarized by column averages):\n")
         means <- t(as.matrix(colMeans(as.matrix(result$estimates$N.hat))))
-        printCoefmat(means)
+        printCoefmat(means, has.Pvalue = FALSE)
 
         cat("\nd.hat:\n")
-        printCoefmat(result$estimates$d.hat)
+        printCoefmat(result$estimates$d.hat, has.Pvalue = FALSE)
     }
 
     cat("\n")
