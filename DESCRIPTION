@@ -9,5 +9,7 @@ License: MIT
 LazyData: true
 Suggests:
     MASS,
-    e1071,
-    PoiClaClu
+    , e1071
+    , PoiClaClu
+    , ggplot2
+

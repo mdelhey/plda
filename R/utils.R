@@ -122,3 +122,36 @@ split.data <- function(x, train = 0.7, val = 0.0, test = 0.3) {
 
     return(list(trn = ind.trn, val = ind.val, tst = ind.tst))
 }
+
+#' @title Simulate Poisson.
+#' @return List of X and y.
+#' X is (n*K by p) data matrix composed of independent univariate poissons.
+#' y is (n by 1) factor of class labels.
+simulate.poisson <- function(n, p, K, lambda) {
+    stopifnot(is.numeric(n), is.vector(n))
+    stopifnot(is.numeric(p), is.vector(p))
+    stopifnot(is.numeric(K), is.vector(K))
+    if (length(lambda) != K || !is.vector(lambda))
+        stop("lambda must be a vector of length K")    
+
+    X <- do.call("rbind", lapply(1:K, function(k)
+        replicate(p, rpois(n, lambda = lambda[k]))))
+
+    y <- as.factor(do.call("c", lapply(1:K, function(k)
+        rep(k, n))))
+    
+    simulation <- list(X = X, y = y, K = K, lambda = lambda)
+    
+    return(simulation)
+}
+
+point.grid <- function(Xmin, Xmax, Ymin, Ymax, n.seq = 1000) {
+    x <- seq(Xmin, Xmax, length.out = n.seq)
+    y <- seq(Ymin, Ymax, length.out = n.seq)
+
+    z <- do.call("cbind", lapply(1:length(x), function(i)
+        cbind(x[i], y)))
+           
+    X <- as.matrix()
+    z <- expand.grid(x, y)
+}
