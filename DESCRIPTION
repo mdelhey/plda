@@ -8,7 +8,7 @@ Depends:
 License: MIT
 LazyData: true
 Suggests:
-    MASS,
+    MASS
     , e1071
     , PoiClaClu
     , ggplot2
