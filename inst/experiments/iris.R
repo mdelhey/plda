@@ -1,4 +1,4 @@
-path <- path.package("plda")
+path <- "~/plda"
 devtools::install(path)
 devtools::load_all(path)
 library(plda)

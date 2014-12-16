@@ -11,10 +11,19 @@ predict.plda <- function(result, Xnew, ...) {
         )
     }
 
-    if (result$parameters$type == "poisson") {
+    if (result$parameters$type == "poisson") {        
+        s.estimate <- estimate.size.factor(
+            Xnew
+          , X.train.parameter = result$estimates$X.train.parameter
+          , type = result$parameters$size.factor
+        )
+
+        s.hat <- s.estimate$s.hat
+        N.hat <- matrix(s.hat) %*% matrix(result$estimates$g.hat, nrow = 1)
+        
         densities <- estimate.poisson.densities(
             Xnew
-          , N.hat = result$estimates$N.hat
+          , N.hat = N.hat
           , d.hat = result$estimates$d.hat
         )        
     }

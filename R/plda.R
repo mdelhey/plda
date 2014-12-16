@@ -6,11 +6,15 @@
 #' separately. Linear and Quadratic assume predictors are normally distributed (i.e. continous
 #' data). Poisson models count data.
 #' @return List of class "plda" containing the classifier results.
-plda <- function(X, y, type = c("linear", "quadratic", "poisson"), size.factor = c("mle", "quantile", "medratio"), prior = c("uniform", "proportion"))
+plda <- function(X, y,
+                 type = c("linear", "quadratic", "poisson"),
+                 size.factor = c("mle", "quantile", "medratio"),
+                 prior = c("uniform", "proportion"))
 {
     stopifnot(is.matrix(X), is.factor(y), length(y) == nrow(X))
     type  <- match.arg(type)
     prior <- match.arg(prior)
+    size.factor <- match.arg(size.factor)
     
     # House-keeping variables.
     K <- length(levels(y))
@@ -26,38 +30,24 @@ plda <- function(X, y, type = c("linear", "quadratic", "poisson"), size.factor =
     )
     
     if (type == "poisson") {
-        # Dot notation
-        Xi. <- apply(X, 1, sum) # rowSums
-        X.j <- apply(X, 2, sum) # colSums
-        X.. <- sum(X)
-        
-        q.i <- pmax(apply(X, 1, quantile, 0.75), 1) # Minimum quantile value is 1
-        beta <- 1 # Smoothing parameter for Poisson. 0 is MLE
-        
-        # s = counts per observation (size factor)
-        # g = counts per feature                
-        s.hat <- switch(
-            size.factor
-          , mle      = Xi. / X..
-          , quantile = q.i / sum(q.i)
-          , medratio = NULL
-        )
-        
-        g.hat <- X.j
-        N.hat <- matrix(s.hat) %*% matrix(g.hat, nrow = 1)
+        # Smoothing parameter for Poisson. 0 is MLE
+        beta <- 1
+
+        # Parameter estimates
+        s.estimate <- estimate.size.factor(X, type = size.factor)
+        s.hat <- s.estimate$s.hat                           # s = counts per obs
+        g.hat <- colSums(X)                                 # g = counts per feature                
+        N.hat <- matrix(s.hat) %*% matrix(g.hat, nrow = 1)  # N = lambda's
         
         a <- as.matrix(do.call("rbind", by(X, y, function(x) colSums(x) + beta)))
         b <- as.matrix(do.call("rbind", by(N.hat, y, function(x) colSums(x) + beta)))
         d.hat <- a / b # dkj > 1, jth feature is over-expressed relative to kth class       
         
-        if (!all.equal(sum(s.hat), 1))
-            stop("Error estimating s.hat, doesn't sum to 1.")        
-
         # Calculate Liklihood of Poisson using row-class dependent lambda
         densities <- estimate.poisson.densities(X, N.hat, d.hat)
 
         # Use bayes rule to calculate posterior densities
-        posteriors <- bayes.rule(X, densities, pi.hat, type = "sum")
+        posteriors <- bayes.rule(X, densities, pi.hat)
         fitted.posteriors <- fit.posteriors(posteriors, levels(y))
 
         # Compare with discriminant rule to assign classes
@@ -69,12 +59,14 @@ plda <- function(X, y, type = c("linear", "quadratic", "poisson"), size.factor =
         
         if (!isTRUE(all.equal(fitted.discriminants, fitted.posteriors)))
             warning("discrimants and posteriors do not agree!")
-
+        
         # Return poisson estimates
         estimates = list(
             pi.hat = pi.hat
           , N.hat  = N.hat
           , d.hat  = d.hat
+          , g.hat  = g.hat
+          , X.train.parameter = s.estimate$X.train.parameter
         )        
     }
     
@@ -91,7 +83,7 @@ plda <- function(X, y, type = c("linear", "quadratic", "poisson"), size.factor =
         densities <- estimate.normal.densities(X, mu.hat, sigma.hat, type = type)
 
         # Use bayes rule to calculate posterior densities
-        posteriors <- bayes.rule(X, densities, pi.hat)        
+        posteriors <- bayes.rule(X, densities, pi.hat)
         fitted.posteriors <- fit.posteriors(posteriors, levels(y))
 
         # Compare with Fisher's discriminant rule to assign classes
@@ -123,6 +115,8 @@ plda <- function(X, y, type = c("linear", "quadratic", "poisson"), size.factor =
           , K = K
           , N.k = N.k
           , type = type
+          , size.factor = size.factor
+          , prior = prior
           , levels = levels(y)
         )
       , estimates = estimates
@@ -131,5 +125,6 @@ plda <- function(X, y, type = c("linear", "quadratic", "poisson"), size.factor =
       , densities = densities        
     )
     class(result) <- "plda"
+    
     return(result)
 }
