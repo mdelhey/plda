@@ -1,44 +1,32 @@
-library(plda)
-library(ggplot2)
-set.seed(1)
-
 # For development
 devtools::install("~/plda")
 devtools::load_all("~/plda")
 
+set.seed(1)
 ################################################################################
 ### Small simulation (for visualization)
 ################################################################################
-
 n.small <- 50
 p.small <- 2
-K.small <- 2
-lambda.small <- c(10, 28)
+K.small <- 3
+lambda.small <- c(10, 28, 48)
 sim.small <- simulate.poisson(n = n.small, p = p.small, K = K.small, lambda = lambda.small)
 
 # Data matricies
 X <- as.matrix(sim.small$X)
 y <- as.factor(sim.small$y)
 
-fit <- plda(X, y, type = "poisson", prior = "uniform", size.factor = "mle")
+fit <- plda(X, y, type = "linear", prior = "uniform")
 
-# Generate grid
-Xmin <- max(min(X[, 1]) - 5, 0)
-Xmax <- max(X[, 1]) + 5
-Ymin <- max(min(X[, 2]) - 5, 0)
-Ymax <- max(X[, 2]) + 5
-X.grid <- point.grid(Xmin, Xmax, Ymin, Ymax, n.seq = 100)
-y.grid <- predict(fit, X.grid)
-
-# Plot deciscion boundry
-ggplot() +
-  geom_point(aes(x = X[, 1], y = X[, 2], color = y)) +
-  theme_bw() + xlab("feature 1") + ylab("feature 2") + 
-  xlim(Xmin, Xmax) + ylim(Ymin, Ymax) +
-  geom_point(aes(x = X.grid[, 1], y = X.grid[, 2], color = y.grid), alpha = 0.2)
+plot(fit, X, y)
 
 # Errors
 length(which(fitted(fit) == y)) / length(y)
+
+ggplot() +
+  geom_point(aes(x = X[, 1], y = X[, 2], color = fitted(fit))) +
+  theme_bw() + xlab("feature 1") + ylab("feature 2") + 
+  xlim(Xmin, Xmax) + ylim(Ymin, Ymax) 
 
 
 ################################################################################
