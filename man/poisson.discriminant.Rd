@@ -2,11 +2,11 @@
 % Please edit documentation in R/distributions.R
 \name{poisson.discriminant}
 \alias{poisson.discriminant}
-\title{Poisson discriminant.}
+\title{Poission discriminant.}
 \usage{
-poisson.discriminant(x, s, g, d, pi)
+poisson.discriminant(x, lambda, pi)
 }
 \description{
-Poisson discriminant.
+Poission discriminant.
 }
 

@@ -4,7 +4,7 @@
 \alias{plda}
 \title{Poisson discriminant analysis.}
 \usage{
-plda(X, y, type = c("linear", "quadratic", "poisson"),
+plda(X, y, type = c("linear", "quadratic", "poisson", "poisson.seq"),
   size.factor = c("mle", "quantile", "medratio"), prior = c("uniform",
   "proportion"))
 }
@@ -17,6 +17,12 @@ plda(X, y, type = c("linear", "quadratic", "poisson"),
 class covariances are equal. Quadratic estimates each population class covariance
 separately. Linear and Quadratic assume predictors are normally distributed (i.e. continous
 data). Poisson models count data.}
+
+\item{size.factor}{}
+
+\item{prior}{Type of prior probability. "Uniform" assumes that all classes are equally
+likely. "Proportion" estimates the prior probability of each class from their proportion in the
+training data.}
 }
 \value{
 List of class "plda" containing the classifier results.

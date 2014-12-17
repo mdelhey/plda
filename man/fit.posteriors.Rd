@@ -6,6 +6,14 @@
 \usage{
 fit.posteriors(posteriors, levels)
 }
+\arguments{
+\item{posteriors}{N by K matrix of posterior probabilities.}
+
+\item{levels}{K-length vector of factor levels corresponding to response classes.}
+}
+\value{
+N-length vector of predicted classes.
+}
 \description{
 Fit posteriors.
 }

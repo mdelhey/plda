@@ -4,7 +4,7 @@
 \alias{estimate.poisson.densities}
 \title{Estimate poisson densities.}
 \usage{
-estimate.poisson.densities(X, N.hat, d.hat)
+estimate.poisson.densities(X, lambda.hat)
 }
 \arguments{
 \item{X}{Matrix of predictors.}
