@@ -55,3 +55,11 @@ point.grid <- function(Xmin, Xmax, Ymin, Ymax, n.seq = 1000) {
 geo.mean <- function(x, na.rm = TRUE) {
   exp(sum(log(x[x > 0]), na.rm = na.rm) / length(x))
 }
+
+count.sequence <- function(sequence, words = 2) {
+    seqs <- strsplit(tolower(stringr::str_trim(sequence)), "")
+    counts <- do.call("rbind", (lapply(1:length(seqs), function(i)
+        seqinr::count(seqs[[i]], words))))
+
+    return(counts)
+}

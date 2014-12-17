@@ -5,9 +5,13 @@
 #' class covariances are equal. Quadratic estimates each population class covariance
 #' separately. Linear and Quadratic assume predictors are normally distributed (i.e. continous
 #' data). Poisson models count data.
+#' @param size.factor
+#' @param prior Type of prior probability. "Uniform" assumes that all classes are equally
+#' likely. "Proportion" estimates the prior probability of each class from their proportion in the
+#' training data.
 #' @return List of class "plda" containing the classifier results.
 plda <- function(X, y,
-                 type = c("linear", "quadratic", "poisson"),
+                 type = c("linear", "quadratic", "poisson", "poisson.seq"),
                  size.factor = c("mle", "quantile", "medratio"),
                  prior = c("uniform", "proportion"))
 {
@@ -29,7 +33,7 @@ plda <- function(X, y,
       , proportion = N.k / N
     )
     
-    if (type == "poisson") {
+    if (type == "poisson.seq") {
         # Smoothing parameter for Poisson. 0 is MLE
         beta <- 1
 
@@ -41,10 +45,10 @@ plda <- function(X, y,
         
         a <- as.matrix(do.call("rbind", by(X, y, function(x) colSums(x) + beta)))
         b <- as.matrix(do.call("rbind", by(N.hat, y, function(x) colSums(x) + beta)))
-        d.hat <- a / b # dkj > 1, jth feature is over-expressed relative to kth class       
-        
+        d.hat <- a / b # dkj > 1, jth feature is over-expressed relative to kth class
+
         # Calculate Liklihood of Poisson using row-class dependent lambda
-        densities <- estimate.poisson.densities(X, N.hat, d.hat)
+        densities <- estimate.poisson.seq.densities(X, N.hat, d.hat)        
 
         # Use bayes rule to calculate posterior densities
         posteriors <- bayes.rule(X, densities, pi.hat)
@@ -52,7 +56,7 @@ plda <- function(X, y,
 
         # Compare with discriminant rule to assign classes
         discriminants <- do.call("rbind", lapply(1:N, function(i) unlist(lapply(1:K, function(k)
-            poisson.discriminant(X[i, ], s.hat[i], g.hat, d.hat[k, ], pi.hat[k])))))
+            poisson.seq.discriminant(X[i, ], s.hat[i], g.hat, d.hat[k, ], pi.hat[k])))))
 
         # Ensure we make the same predictions.
         fitted.discriminants <- fit.posteriors(discriminants, levels(y))
@@ -68,6 +72,42 @@ plda <- function(X, y,
           , g.hat  = g.hat
           , X.train.parameter = s.estimate$X.train.parameter
         )        
+    }
+
+    if (type == "poisson") {
+        # MLE estimates (lambda is K x P)
+        lambda.hat <- do.call("rbind", by(X, y, function(x) unlist(lapply(1:P, function(j)
+            MASS::fitdistr(x[, j], densfun = "Poisson")$estimate))))
+
+        # Calculate Liklihood of Poisson using column-class dependent lambda
+        densities <- estimate.poisson.densities(X, lambda = lambda.hat)
+        
+        # Use bayes rule to calculate posterior densities
+        posteriors <- bayes.rule(X, densities, pi.hat)
+        fitted.posteriors <- fit.posteriors(posteriors, levels(y))
+        
+        # Compare with discriminant rule to assign classes
+        discriminants <- do.call("rbind", lapply(1:N, function(i) unlist(lapply(1:K, function(k)
+            poisson.discriminant(X[i, ], lambda.hat[k, ], pi.hat[k])))))
+
+        # Ensure we make the same predictions.
+        fitted.discriminants <- fit.posteriors(discriminants, levels(y))
+        
+        if (!isTRUE(all.equal(fitted.discriminants, fitted.posteriors)))
+            warning("discrimants and posteriors do not agree!")
+        
+        # Return poisson estimates
+        estimates = list(
+            pi.hat = pi.hat
+          , lambda.hat = lambda.hat
+        )
+    }
+    
+    if (type == "negbin") {
+        stop("Negative binomial not currently supported")
+        # MLE estimates
+        ng.estimate <- do.call("rbind", by(X, y, function(x) unlist(lapply(1:P, function(j)
+            MASS::fitdistr(x[, j], densfun = "Negative Binomial")$estimate)))) # K x       
     }
     
     if (type %in% c("linear", "quadratic")) {
@@ -122,7 +162,8 @@ plda <- function(X, y,
       , estimates = estimates
       , fitted = fitted.posteriors
       , posteriors = posteriors
-      , densities = densities        
+      , densities = densities
+      , discriminants = discriminants
     )
     class(result) <- "plda"
     

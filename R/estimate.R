@@ -20,6 +20,9 @@ bayes.rule <- function(X, densities, pi, type = c("sum", "prod")) {
         posteriors <- exp(1)^log.posteriors
     }
 
+    if (any(is.na(posteriors)))
+        stop("NA posteriors.")
+        
     if (!isTRUE(all.equal(apply(posteriors, 1, sum), rep(1, N), check.attributes = FALSE)))
         warning("posteriors do not sum to one!")
 
@@ -44,16 +47,35 @@ estimate.normal.densities <- function(X, mu.hat, sigma.hat, type = c("linear", "
     return(densities)
 }
 
-#' @title Estimate poisson densities.
+#' @title Estimate poisson sequence densities.
 #' @inheritParams plda
-estimate.poisson.densities <- function(X, N.hat, d.hat) {
-    stopifnot(nrow(X) == nrow(N.hat))
-    K <- nrow(d.hat)
+estimate.poisson.seq.densities <- function(X, N.hat, d.hat) {
     N <- nrow(X)
+    P <- ncol(X)
+    K <- nrow(d.hat)
+    
+    stopifnot(nrow(N.hat) == N, ncol(d.hat) == P)
     
     densities <- do.call("rbind", lapply(1:N, function(i) unlist(lapply(1:K, function(k)
         prod(poisson.density(X[i, ], lambda = N.hat[i, ] * d.hat[k, ]))))))
+
+    print(colMeans(densities))
     
+    return(densities)
+}
+
+#' @title Estimate poisson densities.
+#' @inheritParams plda
+estimate.poisson.densities <- function(X, lambda.hat) {
+    N <- nrow(X)
+    P <- ncol(X)
+    K <- nrow(lambda.hat)
+    
+    stopifnot(ncol(lambda.hat) == P, !is.list(lambda.hat))
+        
+    densities <- do.call("rbind", lapply(1:N, function(i) unlist(lapply(1:K, function(k)
+        prod(poisson.density(X[i, ], lambda = lambda.hat[k, ]))))))
+
     return(densities)
 }
 
@@ -73,10 +95,12 @@ estimate.size.factor <- function(X, X.train.parameter = NULL, type = c("mle", "q
       , medratio = apply(X, 1, function(x) median(x / apply(X, 2, geo.mean)))            
     )
 
+    # If testing, remember x.i from training data.
     s.hat <- x.i / ifelse(is.train, sum(x.i), X.train.parameter)
+    #s.hat <- s.hat / sum(s.hat)
 
     if (is.train && !all.equal(sum(s.hat), 1.0)) # Not true for test s.hat
-        stop("Error estimating s.hat, doesn't sum to 1.")        
+        stop("Error estimating s.hat, doesn't sum to 1.")
     
     # Need to use training data for test data.
     X.train.parameter <- sum(x.i)
@@ -90,10 +114,16 @@ estimate.size.factor <- function(X, X.train.parameter = NULL, type = c("mle", "q
 }
 
 #' @title Fit posteriors.
+#' @param posteriors N by K matrix of posterior probabilities.
+#' @param levels K-length vector of factor levels corresponding to response classes.
+#' @return N-length vector of predicted classes.
 fit.posteriors <- function(posteriors, levels) {
     stopifnot(is.character(levels), is.vector(levels), is.matrix(posteriors))
+    stopifnot(ncol(posteriors) == length(levels))
+    
     factor(levels[apply(posteriors, 1, which.max)], levels = levels)
 }
+
 
 ## #' @title Calculate discriminants
 ## #' @description Wrapper for discriminant functions. Not currently in use.

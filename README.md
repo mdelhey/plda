@@ -22,6 +22,4 @@ y <- as.factor(iris[, 5])
 fit <- plda(X, y, type = "quadratic")
 fit
 fitted(fit)
-
-data(faithful)
 ```

@@ -18,7 +18,12 @@ quadratic.discriminant <- function(x, mu, sigma, pi) {
     (-1/2)*log(det(sigma)) - (1/2)*t(x - mu) %*% solve(sigma) %*% (x - mu) + log(pi)
 }
 
-#' @title Poisson discriminant.
-poisson.discriminant <- function(x, s, g, d, pi) {
+#' @title Poisson sequence discriminant.
+poisson.seq.discriminant <- function(x, s, g, d, pi) {
     sum(x*log(d)) - s*sum(g*d) + log(pi)
+}
+
+#' @title Poission discriminant.
+poisson.discriminant <- function(x, lambda, pi) {
+    sum(x*log(lambda) - log(factorial(x)) - lambda) + log(pi)
 }
