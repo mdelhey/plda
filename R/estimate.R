@@ -20,8 +20,11 @@ bayes.rule <- function(X, densities, pi, type = c("sum", "prod")) {
         posteriors <- exp(1)^log.posteriors
     }
 
-    if (any(is.na(posteriors)))
-        stop("NA posteriors.")
+    if (any(is.na(posteriors))) {
+        message("NA posteriors. Using priors for posteriors.")
+        na.rows <- which(apply(posteriors, 1, function(x) any(is.na(x))))
+        posteriors[na.rows, ] <- pi
+    }           
         
     if (!isTRUE(all.equal(apply(posteriors, 1, sum), rep(1, N), check.attributes = FALSE)))
         warning("posteriors do not sum to one!")
@@ -58,8 +61,6 @@ estimate.poisson.seq.densities <- function(X, N.hat, d.hat) {
     
     densities <- do.call("rbind", lapply(1:N, function(i) unlist(lapply(1:K, function(k)
         prod(poisson.density(X[i, ], lambda = N.hat[i, ] * d.hat[k, ]))))))
-
-    print(colMeans(densities))
     
     return(densities)
 }

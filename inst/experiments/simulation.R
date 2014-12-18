@@ -1,7 +1,4 @@
-# For development
-devtools::install("~/plda")
-devtools::load_all("~/plda")
-
+library(plda)
 set.seed(1)
 ################################################################################
 ### Small simulation (for visualization)
@@ -12,93 +9,75 @@ K.small <- 3
 lambda.small <- c(10, 28, 48)
 sim.small <- simulate.poisson(n = n.small, p = p.small, K = K.small, lambda = lambda.small)
 
-# Data matricies
 X <- as.matrix(sim.small$X)
 y <- as.factor(sim.small$y)
 
-fit <- plda(X, y, type = "linear", prior = "uniform")
+fit.lda <- plda(X, y, type = "linear",      prior = "uniform")
+fit.qda <- plda(X, y, type = "quadratic",   prior = "uniform")
+fit.pda <- plda(X, y, type = "poisson",     prior = "uniform")
+fit.sda <- plda(X, y, type = "poisson.seq", prior = "uniform", size.factor = "medratio")
 
-plot(fit, X, y)
+errors <- c(
+    1 - length(which(fitted(fit.lda) == y)) / length(y)
+  , 1 - length(which(fitted(fit.qda) == y)) / length(y)
+  , 1 - length(which(fitted(fit.pda) == y)) / length(y)
+  , 1 - length(which(fitted(fit.sda) == y)) / length(y)    
+)    
 
-# Errors
-length(which(fitted(fit) == y)) / length(y)
+# Plots
+plot.size <- c(4, 4) # width x height
 
-ggplot() +
-  geom_point(aes(x = X[, 1], y = X[, 2], color = fitted(fit))) +
-  theme_bw() + xlab("feature 1") + ylab("feature 2") + 
-  xlim(Xmin, Xmax) + ylim(Ymin, Ymax) 
+plot(fit.lda, X, y) + ggplot2::ggtitle("linear")
+ggplot2::ggsave("decision-boundary-lda.pdf", width = plot.size[1], height = plot.size[2])
 
+plot(fit.qda, X, y) + ggplot2::ggtitle("quadratic")
+ggplot2::ggsave("decision-boundary-qda.pdf", width = plot.size[1], height = plot.size[2])
+
+plot(fit.pda, X, y) + ggplot2::ggtitle("poisson")
+ggplot2::ggsave("decision-boundary-pda.pdf", width = plot.size[1], height = plot.size[2])
+
+plot(fit.sda, X, y) + ggplot2::ggtitle("poisson sequence")
+ggplot2::ggsave("decision-boundary-sda.pdf", width = plot.size[1], height = plot.size[2])
 
 ################################################################################
 ### Large simulation (for accuracy)
 ################################################################################
+sim.large.results <- t(replicate(100, {    
+    n.large <- 100
+    p.large <- 15
+    K.large <- 5
+    lambda.large <- c(10, 12, 28, 48, 100)
+    sim.large <- simulate.poisson(n = n.large, p = p.large, K = K.large, lambda = lambda.large)
 
-n.large <- 100
-p.large <- 25
-K.large <- 5
-lambda.large <- c(10, 12, 28, 48, 100)
-sim.small <- simulate.poisson(n = n.large, p = p.large, K = K.large, lambda = lambda.large)
+    X <- as.matrix(sim.large$X)
+    y <- as.factor(sim.large$y)
 
-# Data matricies
-X <- as.matrix(sim.small$X)
-y <- as.factor(sim.small$y)
+    ind <- split.data(X, train = 0.6, val = 0, test = 0.4)
+    X.trn <- X[ind$trn, ]
+    y.trn <- y[ind$trn]
+    X.tst <- X[ind$tst, ]
+    y.tst <- y[ind$tst]
 
-# Train, test data matricies
-ind <- split.data(X, train = 0.6, val = 0, test = 0.4)
-X.trn <- X[ind$trn, ]
-y.trn <- y[ind$trn]
-X.tst <- X[ind$tst, ]
-y.tst <- y[ind$tst]
+    fit.lda <- plda(X.trn, y.trn, type = "linear",      prior = "uniform") 
+    fit.qda <- plda(X.trn, y.trn, type = "quadratic",   prior = "uniform")
+    fit.pda <- plda(X.trn, y.trn, type = "poisson",     prior = "uniform")
+    fit.sda <- plda(X.trn, y.trn, type = "poisson.seq", prior = "uniform", size.factor = "medratio")
 
-# Fit models
-fit.lda <- plda(X.trn, y.trn, type = "linear",    prior = "uniform") 
-fit.qda <- plda(X.trn, y.trn, type = "quadratic", prior = "uniform")
-fit.pda <- plda(X.trn, y.trn, type = "poisson",   prior = "uniform", size.factor = "mle")
-fit.poicla <- PoiClaClu::Classify(x = X.trn, y = y.trn, xte = X.tst)
+    pred.lda <- predict(fit.lda, X.tst)
+    pred.qda <- predict(fit.qda, X.tst)
+    pred.pda <- predict(fit.pda, X.tst)
+    pred.sda <- predict(fit.sda, X.tst)
 
-# Classify test data
-pred.lda <- predict(fit.lda, X.tst)
-pred.qda <- predict(fit.qda, X.tst)
-pred.pda <- predict(fit.pda, X.tst)
-pred.poicla <- fit.poicla$ytehat
+    errors <- c(
+        (1 - length(which(pred.lda == y.tst)) / length(y.tst)) * 100
+      , (1 - length(which(pred.qda == y.tst)) / length(y.tst)) * 100
+      , (1 - length(which(pred.pda == y.tst)) / length(y.tst)) * 100
+      , (1 - length(which(pred.sda == y.tst)) / length(y.tst)) * 100
+    )
+}))
 
-# Errors
-length(which(pred.lda == y.tst)) / length(y.tst)
-length(which(pred.qda == y.tst)) / length(y.tst)
-length(which(pred.pda == y.tst)) / length(y.tst)
-length(which(pred.poicla == y.tst)) / length(y.tst)
+xtable::xtable(cbind(
+    apply(sim.large.results, 2, mean)
+  , apply(sim.large.results, 2, sd)
+))
 
-################################################################################
-### Compare with PoiClaClu
-################################################################################
-# Compare with PoiClaClu
-#cv <- PoiClaClu::Classify.cv(X, y)
-fit.poicla <- PoiClaClu::Classify(X, y, xte = X.grid, type = "mle", transform = FALSE, rho = 0)
-#pred.trn <- PoiClaClu::Classify(X, y, xte = X, type = "mle", transform = TRUE, rho = 0)$ytehat
-y.grid <- fit.poicla$ytehat
-
-sim <- PoiClaClu::CountDataSet(n = 50, p = 1000, sdsignal = 0.025, K = 3, param = 0.1)
-
-X <- as.matrix(sim$x)
-y <- as.factor(sim$y)
-
-ind <- split.data(X, train = 0.5, val = 0, test = 0.5)
-X.trn <- X[ind$trn, ]
-y.trn <- y[ind$trn]
-X.tst <- X[ind$tst, ]
-y.tst <- y[ind$tst]
-
-# Fit models
-fit.lda <- plda(X.trn, y.trn, type = "linear",    prior = "uniform") 
-#fit.qda <- plda(X.trn, y.trn, type = "quadratic", prior = "uniform")
-#fit.pda <- plda(X.trn, y.trn, type = "poisson",   prior = "uniform", size.factor = "mle")
-fit.poicla <- PoiClaClu::Classify(X.trn, y.trn, xte = X.tst)
-
-# Classify test data
-pred.lda <- predict(fit.lda, X.tst)
-#pred.qda <- predict(fit.qda, X.tst)
-#pred.pda <- predict(fit.pda, X.tst)
-pred.poicla <- fit.poicla$ytehat
-
-length(which((pred.lda) != y.tst)) / length(y.tst)
-length(which((pred.poicla) != y.tst)) / length(y.tst)

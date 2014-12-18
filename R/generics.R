@@ -40,7 +40,9 @@ plot.plda <- function(result, Xnew, y, n.seq = 100, threshold = 5, ...) {
       ggplot2::xlim(Xmin, Xmax) +
       ggplot2::ylim(Ymin, Ymax) +
       ggplot2::scale_x_continuous(expand = c(0, 0)) +
-      ggplot2::scale_y_continuous(expand = c(0, 0))
+      ggplot2::scale_y_continuous(expand = c(0, 0)) +
+      ggplot2::theme(legend.position = "none")
+      #ggplot2::theme(legend.title = ggplot2::element_blank())
 }
 
 predict.plda <- function(result, Xnew, ...) {
@@ -98,9 +100,11 @@ print.plda <- function(result, ...) {
     if (dist == "normal") {
         cat("\nmu.hat:\n")
         printCoefmat(result$estimates$mu.hat)
+    }
 
+    if (result$parameters$type == "linear") {
         cat("\nsigma.hat:\n")
-        printCoefmat(result$estimates$sigma.hat)
+        printCoefmat(result$estimates$sigma.hat)               
     }
 
     if (dist == "poisson") {
