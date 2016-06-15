@@ -23,3 +23,6 @@ fit <- plda(X, y, type = "quadratic")
 fit
 fitted(fit)
 ```
+
+
+

@@ -7,9 +7,12 @@ Depends:
     R (>= 3.1.2)
 License: MIT
 LazyData: true
+Requires:
+    ggplot2
+    , stringr
+    , xtable
 Suggests:
     MASS
     , e1071
     , PoiClaClu
-    , ggplot2
-    , stringr
+    , seqinr
